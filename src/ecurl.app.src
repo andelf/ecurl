@@ -1,0 +1,12 @@
+{application, ecurl,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { ecurl_app, []}},
+  {env, []}
+ ]}.
