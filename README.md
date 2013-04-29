@@ -2,7 +2,7 @@
 
 pull requests are welcome.
 
-``` NOTE: this is a working-in-progress. DO NOT use in production.
+	NOTE: this is a working-in-progress. DO NOT use in production.
 
 ```erlang
 1> l(ecurl).
