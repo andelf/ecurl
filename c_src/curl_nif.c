@@ -3,7 +3,7 @@
 /*  Created     : Mon Apr 29 00:16:13 2013 by Wang ShuYu  */
 /*  Copyright   : Feather Workshop (c) 2013  */
 /*  Description : curl nif  */
-/*  Time-stamp: <2013-04-29 15:41:58 andelf>  */
+/*  Time-stamp: <2013-04-30 00:05:06 andelf>  */
 
 #include <stdio.h>
 #include <curl/curl.h>
@@ -15,11 +15,11 @@ typedef struct ErlCURL_t
     CURL *handle;
 } ErlCURL;
 
+
 static ERL_NIF_TERM atom_ok;
 static ERL_NIF_TERM atom_error;
-
-static ERL_NIF_TERM atom_verbose;
-static ERL_NIF_TERM atom_url;
+static ERL_NIF_TERM atom_true;
+static ERL_NIF_TERM atom_false;
 
 static ErlNifResourceType *CURL_RESOURCE;
 
@@ -31,9 +31,8 @@ static int load(ErlNifEnv *env, void **priv_data, ERL_NIF_TERM load_info)
 {
     atom_ok = enif_make_atom(env, "ok");
     atom_error = enif_make_atom(env, "error");
-
-    atom_verbose = enif_make_atom(env, "verbose");
-    atom_url = enif_make_atom(env, "url");
+    atom_true = enif_make_atom(env, "true");
+    atom_false = enif_make_atom(env, "false");
 
     if ( (CURL_RESOURCE =
           enif_open_resource_type(env, NULL,
@@ -123,29 +122,29 @@ static ERL_NIF_TERM easy_duphandle_nif(ErlNifEnv* env, int argc, const ERL_NIF_T
     return new_curl_resource(env, curl_easy_duphandle(p->handle));
 }
 
-static ERL_NIF_TERM easy_setopt_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM easy_setopt_wrapper_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlCURL *p = NULL;
     CURLoption option;
     unsigned long opt_val;
+    unsigned long long_val;
     char buf[1024];
 
     if (!enif_get_resource(env, argv[0], CURL_RESOURCE, (void **)&p))
         return enif_make_badarg(env);
 
-    if (argv[1] == atom_verbose)
-        option = CURLOPT_VERBOSE;
-    else if (argv[1] == atom_url)
-        option = CURLOPT_URL;
-    else
-        option = 0;
+    if (!enif_get_ulong(env, argv[1], &opt_val))
+        return enif_make_badarg(env);
+
+    option = opt_val;
 
     fprintf(stderr, "option=%d\r\n", option);
 
     if (option > CURLOPTTYPE_OFF_T) {
-        if (!enif_get_ulong(env, argv[2], &opt_val))
+        /* here reuse opt_val as off_t container. TOO BAD */
+        if (!enif_get_ulong(env, argv[2], &long_val))
             return enif_make_badarg(env);
-        curl_easy_setopt(p->handle, option, opt_val);
+        curl_easy_setopt(p->handle, option, long_val);
     } else if (option > CURLOPTTYPE_FUNCTIONPOINT) {
         fprintf(stderr, "blah~~~ \r\n");
     } else if (option > CURLOPTTYPE_OBJECTPOINT) {
@@ -153,9 +152,14 @@ static ERL_NIF_TERM easy_setopt_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM
             return enif_make_badarg(env);
         curl_easy_setopt(p->handle, option, buf);
     } else if (option > CURLOPTTYPE_LONG) {
-        if (!enif_get_ulong(env, argv[2], &opt_val))
+        if (argv[2] == atom_true) {
+            long_val = 1;
+        } else if (argv[2] == atom_false) {
+            long_val = 0;
+        } else if (!enif_get_ulong(env, argv[2], &long_val)) {
             return enif_make_badarg(env);
-        curl_easy_setopt(p->handle, option, opt_val);
+        }
+        curl_easy_setopt(p->handle, option, long_val);
     } else {
         fprintf(stderr, "blah~~~ fuck\r\n");
     }
@@ -186,6 +190,10 @@ static ERL_NIF_TERM debug_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
 {
     ErlCURL *p = NULL;
 
+    fprintf(stderr, "debug: atom=ok: %p -> make is %p\n",
+            (void *)atom_ok,
+            (void *)enif_make_atom(env, "ok"));
+
     if (!enif_get_resource(env, argv[0], CURL_RESOURCE, (void **)&p))
         return enif_make_badarg(env);
 
@@ -207,7 +215,7 @@ static ErlNifFunc nif_funcs[] = {
     {"easy_init", 0, easy_init_nif},
     {"easy_cleanup", 1, easy_cleanup_nif},
     {"easy_duphandle", 1, easy_duphandle_nif},
-    {"easy_setopt", 3, easy_setopt_nif},
+    {"easy_setopt_wrapper", 3, easy_setopt_wrapper_nif},
     {"easy_perform", 1, easy_perform_nif},
     {"debug", 1, debug_nif}
 //    {"bar", 1, bar_nif}
