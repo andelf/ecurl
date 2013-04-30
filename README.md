@@ -4,6 +4,13 @@ pull requests are welcome.
 
 	NOTE: this is a working-in-progress. DO NOT use in production.
 
+TODO:
+
+```
+nif doesn't support calling erlang, so we can't pass call back fun. may be
+port drivers a better.
+```
+
 ```erlang
 1> l(ecurl).
 {module,ecurl}
